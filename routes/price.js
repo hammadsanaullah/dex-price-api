@@ -3,16 +3,33 @@ const axios = require("axios");
 const router = express.Router();
 
 
-async function generateTimeStampsForDay(previousDayTime, tokenTimeStamps) {
+async function generateTimeStampsForDay(previousDayTime) {
 
   var timeStamps = [];
   timeStamps[0] = previousDayTime;
+  // var generatedObject = {};
+  // var key = "data"
+  // generatedObject[key] = [];
 
   for(var i = 1; i < 24; i++) {
     timeStamps.push(timeStamps[ i - 1 ] + 3600);
+    // time = timeStamps[0];
+    // if(timeStamps[i] <= tokenTimeStamps )
+    // generatedObject[key].push({time: {"derivedBNB": 1}})
   }
 
   return timeStamps;
+}
+
+async function generateObjectResponseDay(timeStampsGenerated, timeStampsSubgraph) {
+  var count = 0;
+  for(var i = 0; i < timeStampsGenerated.length; i++) {
+    if(timeStampsGenerated[i] <= timeStampsSubgraph[count]) {
+      //keep adding timestamp of timestampssubgraph[count]
+    } else {
+      count = count + 1;
+    }
+  }
 }
 
 router.get("/get24hourPrices", async (req, res) => {
@@ -129,9 +146,9 @@ router.get("/get24hourPrices", async (req, res) => {
         }
 /////////////////////
         var timestamps = await generateTimeStampsForDay(dayStartTime);
-        // for(var i = 0; i < timestamps.length; i++) {
+        for(var i = 0; i < timestamps.length; i++) {
           
-        // }
+        }
         let constructedData = { data: }
       }
     } else if (
