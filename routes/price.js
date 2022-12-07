@@ -35,42 +35,6 @@ async function generateTimeStampsForMonth(previousDayTime) {
   return timeStamps;
 }
 
-async function generateObjectResponseDay(
-  timeStampsGenerated,
-  timeStampsSubgraphTokenA,
-  priceTokenB,
-  pricesTokenA
-) {
-  var generatedObject = [];
-  var count = 0;
-
-  for (var i = 0; i < timeStampsGenerated.length; i++) {
-    time = timeStampsGenerated[i];
-    if (timeStampsGenerated[i] <= timeStampsSubgraphTokenA[count]) {
-      //keep adding timestamp of timestampssubgraph[count]
-      generatedObject.push({
-        info: { time, derivedBNB: priceTokenB / pricesTokenA[count] },
-      });
-    } else if (timeStampsSubgraphTokenA[count] == undefined) {
-      generatedObject.push({
-        info: { time, derivedBNB: priceTokenB / pricesTokenA[count - 1] },
-      });
-    } else {
-      count = count + 1;
-      if (pricesTokenA[count] == undefined) {
-        generatedObject.push({
-          info: { time, derivedBNB: priceTokenB / pricesTokenA[count - 1] },
-        });
-      } else {
-        generatedObject.push({
-          info: { time, derivedBNB: priceTokenB / pricesTokenA[count] },
-        });
-      }
-    }
-  }
-  return generatedObject;
-}
-
 router.get("/getDayPrices", async (req, res) => {
   try {
     var currentTime = Date.now();
@@ -181,14 +145,36 @@ router.get("/getDayPrices", async (req, res) => {
             .status(500)
             .json({ message: "No pair created with WBNB!!!" });
         }
-        /////////////////////
+
         var timestamps = await generateTimeStampsForDay(dayStartTime);
-        var generatedObject = await generateObjectResponseDay(
-          timestamps,
-          timeStampsAArray,
-          lastPrice,
-          priceAArray
-        );
+
+        var generatedObject = [];
+        var count = 0;
+      
+        for (var i = 0; i < timestamps.length; i++) {
+          time = timestamps[i];
+          if (timestamps[i] <= timeStampsAArray[count]) {
+            //keep adding timestamp of timestampssubgraph[count]
+            generatedObject.push({
+              info: { time, derivedBNB: lastPrice / priceAArray[count] },
+            });
+          } else if (timeStampsAArray[count] == undefined) {
+            generatedObject.push({
+              info: { time, derivedBNB: lastPrice / priceAArray[count - 1] },
+            });
+          } else {
+            count = count + 1;
+            if (priceAArray[count] == undefined) {
+              generatedObject.push({
+                info: { time, derivedBNB: lastPrice / priceAArray[count - 1] },
+              });
+            } else {
+              generatedObject.push({
+                info: { time, derivedBNB: lastPrice / priceAArray[count] },
+              });
+            }
+          }
+        }
 
         return res.status(200).json({ data: generatedObject });
 
