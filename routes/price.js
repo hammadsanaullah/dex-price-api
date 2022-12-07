@@ -2,17 +2,15 @@ const express = require("express");
 const axios = require("axios");
 const router = express.Router();
 
-
 async function generateTimeStampsForDay(previousDayTime) {
-
   var timeStamps = [];
   timeStamps[0] = previousDayTime;
   // var generatedObject = {};
   // var key = "data"
   // generatedObject[key] = [];
 
-  for(var i = 1; i < 24; i++) {
-    timeStamps.push(timeStamps[ i - 1 ] + 3600);
+  for (var i = 1; i < 24; i++) {
+    timeStamps.push(timeStamps[i - 1] + 3600);
     // time = timeStamps[0];
     // if(timeStamps[i] <= tokenTimeStamps )
     // generatedObject[key].push({time: {"derivedBNB": 1}})
@@ -21,44 +19,42 @@ async function generateTimeStampsForDay(previousDayTime) {
   return timeStamps;
 }
 
-async function generateObjectResponseDay(timeStampsGenerated, timeStampsSubgraph) {
+async function generateObjectResponseDay(
+  timeStampsGenerated,
+  timeStampsSubgraphTokenA,
+  priceTokenB,
+  pricesTokenA
+) {
+  var generatedObject = [];
   var count = 0;
-  for(var i = 0; i < timeStampsGenerated.length; i++) {
-    if(timeStampsGenerated[i] <= timeStampsSubgraph[count]) {
+
+  for (var i = 0; i < timeStampsGenerated.length; i++) {
+    if (timeStampsGenerated[i] <= timeStampsSubgraphTokenA[count]) {
       //keep adding timestamp of timestampssubgraph[count]
+      time = timeStampsGenerated[i];
+      generatedObject.push({ info: { time, derivedBNB: priceTokenB/pricesTokenA[count] } });
+    } else if(timeStampsSubgraphTokenA[count] == undefined) {
+      generatedObject.push({ info: { time, derivedBNB: priceTokenB/pricesTokenA[count-1] } });
     } else {
       count = count + 1;
+      if(pricesTokenA[count] == undefined){
+        generatedObject.push({ info: { time, derivedBNB: priceTokenB/pricesTokenA[count-1] } });
+      } else {
+        generatedObject.push({ info: { time, derivedBNB: priceTokenB/pricesTokenA[count] } });
+      }
     }
   }
+  return generatedObject
 }
 
 router.get("/get24hourPrices", async (req, res) => {
   try {
-
-    var dayStartTime = Math.round(Date.now() / 1000);
+    var currentTime = Date.now();
+    var dayStartTime = Math.round(currentTime / 1000);
     dayStartTime = dayStartTime - 86400;
     console.log(dayStartTime);
 
     let tokenAhoursnapshotsdata = await axios({
-      url: "https://api.thegraph.com/subgraphs/name/hammadsanaullah/pancakeswapmumbaitestnet",
-      method: "post",
-      headers: {
-        "content-type": "application/json",
-        "Accept-Encoding": "utf-8",
-      },
-      data: {
-        query: `{
-          tokenHourSnapshots(where: { token_: { symbol: "BTCB" }, date_gt: ${dayStartTime} }) {
-            id
-            priceNative
-            date
-          }
-        }
-          `,
-      },
-    });
-
-    let tokenBhoursnapshotsdata = await axios({
       url: "https://api.thegraph.com/subgraphs/name/hammadsanaullah/pancakeswapmumbaitestnet",
       method: "post",
       headers: {
@@ -77,12 +73,30 @@ router.get("/get24hourPrices", async (req, res) => {
       },
     });
 
+    let tokenBhoursnapshotsdata = await axios({
+      url: "https://api.thegraph.com/subgraphs/name/hammadsanaullah/pancakeswapmumbaitestnet",
+      method: "post",
+      headers: {
+        "content-type": "application/json",
+        "Accept-Encoding": "utf-8",
+      },
+      data: {
+        query: `{
+          tokenHourSnapshots(where: { token_: { symbol: "BTCB" }, date_gt: ${dayStartTime} }) {
+            id
+            priceNative
+            date
+          }
+        }
+          `,
+      },
+    });
+
     //if tokenAhoursnapshot has data and tokenBhoursnapshot doesn't have data
     if (
       tokenAhoursnapshotsdata.data.data.tokenHourSnapshots.length != 0 &&
       tokenBhoursnapshotsdata.data.data.tokenHourSnapshots.length == 0
     ) {
-
       //if tokenhoursnapshots exist but the priceNative is 0
       if (
         tokenAhoursnapshotsdata.data.data.tokenHourSnapshots[
@@ -91,11 +105,9 @@ router.get("/get24hourPrices", async (req, res) => {
       ) {
         //have to return here that create a pair with WBNB
         return res
-            .status(500)
-            .json({ message: "No pair created with WBNB!!!" });
-
+          .status(500)
+          .json({ message: "No pair created with WBNB!!!" });
       } else {
-
         //if price is not 0 then iterate and get all the hourly price data
         var priceAArray = [];
         var timeStampsAArray = [];
@@ -144,34 +156,49 @@ router.get("/get24hourPrices", async (req, res) => {
             .status(500)
             .json({ message: "No pair created with WBNB!!!" });
         }
-/////////////////////
+        /////////////////////
         var timestamps = await generateTimeStampsForDay(dayStartTime);
-        for(var i = 0; i < timestamps.length; i++) {
-          
-        }
-        let constructedData = { data: }
+        var generatedObject = await generateObjectResponseDay(
+          timestamps,
+          timeStampsAArray,
+          lastPrice,
+          priceAArray
+        );
+
+        return res.status(200).json({ data: generatedObject });
+
+        // for (var i = 0; i < timestamps.length; i++) {}
+        // let constructedData = { data: }
       }
     } else if (
       tokenAhoursnapshotsdata.data.data.tokenHourSnapshots.length == 0 &&
       tokenBhoursnapshotsdata.data.data.tokenHourSnapshots.length != 0
     ) {
       //if tokenhoursnapshots exist but the priceNative is 0
+    //tested this one
       if (
         tokenBhoursnapshotsdata.data.data.tokenHourSnapshots[
           tokenBhoursnapshotsdata.data.data.tokenHourSnapshots.length - 1
         ].priceNative == 0
       ) {
         //have to return here that create a pair with WBNB
+        return res
+          .status(500)
+          .json({ message: "No pair created with WBNB!!!" });
       } else {
         //if price is not 0 then iterate and get all the hourly price data
-        var priceArray = [];
+        var priceBArray = [];
+        var timeStampsBArray = [];
         for (
           var i = 0;
           i < tokenBhoursnapshotsdata.data.data.tokenHourSnapshots.length;
           i++
         ) {
-          priceArray.push(
+          priceBArray.push(
             tokenBhoursnapshotsdata.data.data.tokenHourSnapshots[i].priceNative
+          );
+          timeStampsBArray.push(
+            tokenBhoursnapshotsdata.data.data.tokenHourSnapshots[i].date
           );
         }
 
@@ -198,7 +225,7 @@ router.get("/get24hourPrices", async (req, res) => {
 
           // }
           // console.log(tokenData.data.data.tokenPrices)
-          const lastPrice =
+          var lastPrice =
             tokenAData.data.data.tokenPrices[
               tokenAData.data.data.tokenPrices.length - 1
             ].derivedNative;
@@ -208,6 +235,16 @@ router.get("/get24hourPrices", async (req, res) => {
             .status(500)
             .json({ message: "No pair created with WBNB!!!" });
         }
+
+        var timestamps = await generateTimeStampsForDay(dayStartTime);
+        var generatedObject = await generateObjectResponseDay(
+          timestamps,
+          timeStampsBArray,
+          lastPrice,
+          priceBArray
+        );
+
+        return res.status(200).json({ data: generatedObject });
       }
     } else if (
       tokenAhoursnapshotsdata.data.data.tokenHourSnapshots.length != 0 &&
@@ -222,9 +259,13 @@ router.get("/get24hourPrices", async (req, res) => {
           tokenAhoursnapshotsdata.data.data.tokenHourSnapshots.length - 1
         ].priceNative == 0
       ) {
-        //return with create a pair with WBNB
+        //return create a pair with WBNB
+        return res
+          .status(500)
+          .json({ message: "No pair created with WBNB!!!" });
       } else {
         var priceAArray = [];
+
         for (
           var i = 0;
           i < tokenAhoursnapshotsdata.data.data.tokenHourSnapshots.length;
@@ -245,6 +286,16 @@ router.get("/get24hourPrices", async (req, res) => {
             tokenBhoursnapshotsdata.data.data.tokenHourSnapshots[i].priceNative
           );
         }
+
+        var timestamps = await generateTimeStampsForDay(dayStartTime);
+        var generatedObject = await generateObjectResponseDay(
+          timestamps,
+          timeStampsAArray,
+          priceBArray,
+          priceAArray
+        );
+
+        return res.status(200).json({ data: generatedObject });
 
         //return the derivedBNB
       }
@@ -295,12 +346,12 @@ router.get("/get24hourPrices", async (req, res) => {
 
         // }
         // console.log(tokenData.data.data.tokenPrices)
-        const lastPriceA =
+        var lastPriceA =
           tokenAData.data.data.tokenPrices[
             tokenAData.data.data.tokenPrices.length - 1
           ].derivedNative;
 
-        const lastPriceB =
+        var lastPriceB =
           tokenBData.data.data.tokenPrices[
             tokenBData.data.data.tokenPrices.length - 1
           ].derivedNative;
@@ -310,12 +361,18 @@ router.get("/get24hourPrices", async (req, res) => {
           .status(500)
           .json({ message: "No pair created with WBNB!!!" });
       }
-    }
+      var timestamps = await generateTimeStampsForDay(dayStartTime);
+      var generatedObject = await generateObjectResponseDay(
+        timestamps,
+        lastPriceA,
+        lastPriceB,
+        priceAArray
+      );
 
-    console.log(tokenAhoursnapshotsdata.data.data.tokenHourSnapshots);
-    return res.status(200).json({ message: "yayyy" });
+      return res.status(200).json({ data: generatedObject });
+    }
   } catch (error) {
-    return res.status(400).json({ message: error });
+    return res.status(400).json({ message: error.message });
   }
 });
 
