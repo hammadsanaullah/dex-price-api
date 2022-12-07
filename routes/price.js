@@ -35,6 +35,17 @@ async function generateTimeStampsForMonth(previousDayTime) {
   return timeStamps;
 }
 
+async function generateTimeStampsForYear(previousDayTime) {
+  var timeStamps = [];
+  timeStamps[0] = previousDayTime;
+
+  for (var i = 1; i < 30; i++) {
+    timeStamps.push(timeStamps[i - 1] + 86400);
+  }
+
+  return timeStamps;
+}
+
 router.get("/getDayPrices", async (req, res) => {
   try {
     var currentTime = Date.now();
@@ -86,7 +97,6 @@ router.get("/getDayPrices", async (req, res) => {
       tokenBhoursnapshotsdata.data.data.tokenHourSnapshots.length == 0
     ) {
       //if tokenhoursnapshots exist but the priceNative is 0
-      //tested
       if (
         tokenAhoursnapshotsdata.data.data.tokenHourSnapshots[
           tokenAhoursnapshotsdata.data.data.tokenHourSnapshots.length - 1
@@ -133,7 +143,6 @@ router.get("/getDayPrices", async (req, res) => {
           },
         });
 
-        // var lastPrice;
         if (tokenBData.data.data.tokenPrices.length != 0) {
           var lastPrice =
             tokenBData.data.data.tokenPrices[
@@ -150,7 +159,7 @@ router.get("/getDayPrices", async (req, res) => {
 
         var generatedObject = [];
         var count = 0;
-      
+
         for (var i = 0; i < timestamps.length; i++) {
           time = timestamps[i];
           if (timestamps[i] <= timeStampsAArray[count]) {
@@ -177,9 +186,6 @@ router.get("/getDayPrices", async (req, res) => {
         }
 
         return res.status(200).json({ data: generatedObject });
-
-        // for (var i = 0; i < timestamps.length; i++) {}
-        // let constructedData = { data: }
       }
     } else if (
       tokenAhoursnapshotsdata.data.data.tokenHourSnapshots.length == 0 &&
@@ -543,15 +549,22 @@ router.get("/getDayPrices", async (req, res) => {
       }
       var timestamps = await generateTimeStampsForDay(dayStartTime);
 
-
       var generatedObject = [];
       var count = 0;
       var countB = 0;
 
-      for (var i = 0; i < timestamps.length; i++) {
-        generatedObject.push({
-          info: { time, derivedBNB: lastPriceB / lastPriceA },
-        });
+      if (lastPriceA == 0) {
+        for (var i = 0; i < timestamps.length; i++) {
+          generatedObject.push({
+            info: { time, derivedBNB: 0 },
+          });
+        }
+      } else {
+        for (var i = 0; i < timestamps.length; i++) {
+          generatedObject.push({
+            info: { time, derivedBNB: lastPriceB / lastPriceA },
+          });
+        }
       }
 
       return res.status(200).json({ data: generatedObject });
@@ -587,6 +600,25 @@ router.get("/getWeekPrices", async (req, res) => {
       },
     });
 
+    let tokenAdaysnapshotsdataAll = await axios({
+      url: "https://api.thegraph.com/subgraphs/name/hammadsanaullah/pancakeswapmumbaitestnet",
+      method: "post",
+      headers: {
+        "content-type": "application/json",
+        "Accept-Encoding": "utf-8",
+      },
+      data: {
+        query: `{
+          tokenDaySnapshots(where: { token_: { symbol: "${req.body.symbolA}" }}, first: 2) {
+            id
+            priceNative
+            date
+          }
+        }
+          `,
+      },
+    });
+
     let tokenBdaysnapshotsdata = await axios({
       url: "https://api.thegraph.com/subgraphs/name/hammadsanaullah/pancakeswapmumbaitestnet",
       method: "post",
@@ -597,6 +629,25 @@ router.get("/getWeekPrices", async (req, res) => {
       data: {
         query: `{
           tokenDaySnapshots(where: { token_: { symbol: "${req.body.symbolB}" }, date_gt: ${dayStartTime} }) {
+            id
+            priceNative
+            date
+          }
+        }
+          `,
+      },
+    });
+
+    let tokenBdaysnapshotsdataAll = await axios({
+      url: "https://api.thegraph.com/subgraphs/name/hammadsanaullah/pancakeswapmumbaitestnet",
+      method: "post",
+      headers: {
+        "content-type": "application/json",
+        "Accept-Encoding": "utf-8",
+      },
+      data: {
+        query: `{
+          tokenDaySnapshots(where: { token_: { symbol: "${req.body.symbolB}" }}, first: 2) {
             id
             priceNative
             date
@@ -675,28 +726,45 @@ router.get("/getWeekPrices", async (req, res) => {
         var timestamps = await generateTimeStampsForWeek(dayStartTime);
         var generatedObject = [];
         var count = 0;
-      
+
         for (var i = 0; i < timestamps.length; i++) {
           time = timestamps[i];
-          if (timestamps[i] <= timeStampsSubgraphTokenA[count]) {
-            //keep adding timestamp of timestampssubgraph[count]
+          if (
+            timestamps[i] <
+              tokenAdaysnapshotsdataAll.data.data.tokenDaySnapshots[0].date ||
+            timestamps[i] <
+              tokenBdaysnapshotsdataAll.data.data.tokenDaySnapshots[0].date
+          ) {
             generatedObject.push({
-              info: { time, derivedBNB: priceTokenB / pricesTokenA[count] },
-            });
-          } else if (timeStampsSubgraphTokenA[count] == undefined) {
-            generatedObject.push({
-              info: { time, derivedBNB: priceTokenB / pricesTokenA[count - 1] },
+              info: { time, derivedBNB: 0 },
             });
           } else {
-            count = count + 1;
-            if (pricesTokenA[count] == undefined) {
-              generatedObject.push({
-                info: { time, derivedBNB: priceTokenB / pricesTokenA[count - 1] },
-              });
-            } else {
+            if (timestamps[i] <= timeStampsSubgraphTokenA[count]) {
+              //keep adding timestamp of timestampssubgraph[count]
               generatedObject.push({
                 info: { time, derivedBNB: priceTokenB / pricesTokenA[count] },
               });
+            } else if (timeStampsSubgraphTokenA[count] == undefined) {
+              generatedObject.push({
+                info: {
+                  time,
+                  derivedBNB: priceTokenB / pricesTokenA[count - 1],
+                },
+              });
+            } else {
+              count = count + 1;
+              if (pricesTokenA[count] == undefined) {
+                generatedObject.push({
+                  info: {
+                    time,
+                    derivedBNB: priceTokenB / pricesTokenA[count - 1],
+                  },
+                });
+              } else {
+                generatedObject.push({
+                  info: { time, derivedBNB: priceTokenB / pricesTokenA[count] },
+                });
+              }
             }
           }
         }
@@ -775,25 +843,39 @@ router.get("/getWeekPrices", async (req, res) => {
 
         for (var i = 0; i < timestamps.length; i++) {
           time = timestamps[i];
-          if (timestamps[i] <= timeStampsBArray[count]) {
-            //keep adding timestamp of timestampssubgraph[count]
+          if (
+            timestamps[i] <
+              tokenAdaysnapshotsdataAll.data.data.tokenDaySnapshots[0].date ||
+            timestamps[i] <
+              tokenBdaysnapshotsdataAll.data.data.tokenDaySnapshots[0].date
+          ) {
             generatedObject.push({
-              info: { time, derivedBNB: priceBArray[count] / lastPrice },
-            });
-          } else if (timeStampsBArray[count] == undefined) {
-            generatedObject.push({
-              info: { time, derivedBNB: priceBArray[count - 1] / lastPrice },
+              info: { time, derivedBNB: 0 },
             });
           } else {
-            count = count + 1;
-            if (priceBArray[count] == undefined) {
+            if (timestamps[i] <= timeStampsBArray[count]) {
+              //keep adding timestamp of timestampssubgraph[count]
+              generatedObject.push({
+                info: { time, derivedBNB: priceBArray[count] / lastPrice },
+              });
+            } else if (timeStampsBArray[count] == undefined) {
               generatedObject.push({
                 info: { time, derivedBNB: priceBArray[count - 1] / lastPrice },
               });
             } else {
-              generatedObject.push({
-                info: { time, derivedBNB: priceBArray[count] / lastPrice },
-              });
+              count = count + 1;
+              if (priceBArray[count] == undefined) {
+                generatedObject.push({
+                  info: {
+                    time,
+                    derivedBNB: priceBArray[count - 1] / lastPrice,
+                  },
+                });
+              } else {
+                generatedObject.push({
+                  info: { time, derivedBNB: priceBArray[count] / lastPrice },
+                });
+              }
             }
           }
         }
@@ -857,24 +939,25 @@ router.get("/getWeekPrices", async (req, res) => {
 
         for (var i = 0; i < timestamps.length; i++) {
           time = timestamps[i];
-          if (timestamps[i] <= timeStampsAArray[count]) {
-            if (timestamps[i] <= timeStampsBArray[countB]) {
-              generatedObject.push({
-                info: {
-                  time,
-                  derivedBNB: priceBArray[countB] / priceAArray[count],
-                },
-              });
-            } else if (priceBArray[countB] == undefined) {
-              generatedObject.push({
-                info: {
-                  time,
-                  derivedBNB: priceBArray[countB - 1] / priceAArray[count],
-                },
-              });
-            } else {
-              countB = countB + 1;
-              if (priceBArray[countB] == undefined) {
+          if (
+            timestamps[i] <
+              tokenAdaysnapshotsdataAll.data.data.tokenDaySnapshots[0].date ||
+            timestamps[i] <
+              tokenBdaysnapshotsdataAll.data.data.tokenDaySnapshots[0].date
+          ) {
+            generatedObject.push({
+              info: { time, derivedBNB: 0 },
+            });
+          } else {
+            if (timestamps[i] <= timeStampsAArray[count]) {
+              if (timestamps[i] <= timeStampsBArray[countB]) {
+                generatedObject.push({
+                  info: {
+                    time,
+                    derivedBNB: priceBArray[countB] / priceAArray[count],
+                  },
+                });
+              } else if (priceBArray[countB] == undefined) {
                 generatedObject.push({
                   info: {
                     time,
@@ -882,51 +965,24 @@ router.get("/getWeekPrices", async (req, res) => {
                   },
                 });
               } else {
-                generatedObject.push({
-                  info: {
-                    time,
-                    derivedBNB: priceBArray[countB] / priceAArray[count],
-                  },
-                });
+                countB = countB + 1;
+                if (priceBArray[countB] == undefined) {
+                  generatedObject.push({
+                    info: {
+                      time,
+                      derivedBNB: priceBArray[countB - 1] / priceAArray[count],
+                    },
+                  });
+                } else {
+                  generatedObject.push({
+                    info: {
+                      time,
+                      derivedBNB: priceBArray[countB] / priceAArray[count],
+                    },
+                  });
+                }
               }
-            }
-          } else if (timeStampsAArray[count] == undefined) {
-            if (timestamps[i] <= timeStampsBArray[countB]) {
-              generatedObject.push({
-                info: {
-                  time,
-                  derivedBNB: priceBArray[countB] / priceAArray[count - 1],
-                },
-              });
-            } else if (priceBArray[countB] == undefined) {
-              generatedObject.push({
-                info: {
-                  time,
-                  derivedBNB: priceBArray[countB - 1] / priceAArray[count - 1],
-                },
-              });
-            } else {
-              countB = countB + 1;
-              if (priceBArray[countB] == undefined) {
-                generatedObject.push({
-                  info: {
-                    time,
-                    derivedBNB:
-                      priceBArray[countB - 1] / priceAArray[count - 1],
-                  },
-                });
-              } else {
-                generatedObject.push({
-                  info: {
-                    time,
-                    derivedBNB: priceBArray[countB] / priceAArray[count - 1],
-                  },
-                });
-              }
-            }
-          } else {
-            count = count + 1;
-            if (priceAArray[count] == undefined) {
+            } else if (timeStampsAArray[count] == undefined) {
               if (timestamps[i] <= timeStampsBArray[countB]) {
                 generatedObject.push({
                   info: {
@@ -962,23 +1018,52 @@ router.get("/getWeekPrices", async (req, res) => {
                 }
               }
             } else {
-              if (timestamps[i] <= timeStampsBArray[countB]) {
-                generatedObject.push({
-                  info: {
-                    time,
-                    derivedBNB: priceBArray[countB] / priceAArray[count],
-                  },
-                });
-              } else if (priceBArray[countB] == undefined) {
-                generatedObject.push({
-                  info: {
-                    time,
-                    derivedBNB: priceBArray[countB - 1] / priceAArray[count],
-                  },
-                });
+              count = count + 1;
+              if (priceAArray[count] == undefined) {
+                if (timestamps[i] <= timeStampsBArray[countB]) {
+                  generatedObject.push({
+                    info: {
+                      time,
+                      derivedBNB: priceBArray[countB] / priceAArray[count - 1],
+                    },
+                  });
+                } else if (priceBArray[countB] == undefined) {
+                  generatedObject.push({
+                    info: {
+                      time,
+                      derivedBNB:
+                        priceBArray[countB - 1] / priceAArray[count - 1],
+                    },
+                  });
+                } else {
+                  countB = countB + 1;
+                  if (priceBArray[countB] == undefined) {
+                    generatedObject.push({
+                      info: {
+                        time,
+                        derivedBNB:
+                          priceBArray[countB - 1] / priceAArray[count - 1],
+                      },
+                    });
+                  } else {
+                    generatedObject.push({
+                      info: {
+                        time,
+                        derivedBNB:
+                          priceBArray[countB] / priceAArray[count - 1],
+                      },
+                    });
+                  }
+                }
               } else {
-                countB = countB + 1;
-                if (priceBArray[countB] == undefined) {
+                if (timestamps[i] <= timeStampsBArray[countB]) {
+                  generatedObject.push({
+                    info: {
+                      time,
+                      derivedBNB: priceBArray[countB] / priceAArray[count],
+                    },
+                  });
+                } else if (priceBArray[countB] == undefined) {
                   generatedObject.push({
                     info: {
                       time,
@@ -986,12 +1071,23 @@ router.get("/getWeekPrices", async (req, res) => {
                     },
                   });
                 } else {
-                  generatedObject.push({
-                    info: {
-                      time,
-                      derivedBNB: priceBArray[countB] / priceAArray[count],
-                    },
-                  });
+                  countB = countB + 1;
+                  if (priceBArray[countB] == undefined) {
+                    generatedObject.push({
+                      info: {
+                        time,
+                        derivedBNB:
+                          priceBArray[countB - 1] / priceAArray[count],
+                      },
+                    });
+                  } else {
+                    generatedObject.push({
+                      info: {
+                        time,
+                        derivedBNB: priceBArray[countB] / priceAArray[count],
+                      },
+                    });
+                  }
                 }
               }
             }
@@ -1043,10 +1139,6 @@ router.get("/getWeekPrices", async (req, res) => {
         tokenAData.data.data.tokenPrices.length != 0 ||
         tokenBData.data.data.tokenPrices.length != 0
       ) {
-        // for(var i = 0; i < tokenData.data.data.tokenPrices.length; i++ ) {
-
-        // }
-        // console.log(tokenData.data.data.tokenPrices)
         var lastPriceA =
           tokenAData.data.data.tokenPrices[
             tokenAData.data.data.tokenPrices.length - 1
@@ -1064,15 +1156,22 @@ router.get("/getWeekPrices", async (req, res) => {
       }
       var timestamps = await generateTimeStampsForWeek(dayStartTime);
 
-
       var generatedObject = [];
       var count = 0;
       var countB = 0;
 
-      for (var i = 0; i < timestamps.length; i++) {
-        generatedObject.push({
-          info: { time, derivedBNB: lastPriceB / lastPriceA },
-        });
+      if (lastPriceA == 0) {
+        for (var i = 0; i < timestamps.length; i++) {
+          generatedObject.push({
+            info: { time, derivedBNB: 0 },
+          });
+        }
+      } else {
+        for (var i = 0; i < timestamps.length; i++) {
+          generatedObject.push({
+            info: { time, derivedBNB: lastPriceB / lastPriceA },
+          });
+        }
       }
 
       return res.status(200).json({ data: generatedObject });
@@ -1108,6 +1207,25 @@ router.get("/getMonthPrices", async (req, res) => {
       },
     });
 
+    let tokenAdaysnapshotsdataAll = await axios({
+      url: "https://api.thegraph.com/subgraphs/name/hammadsanaullah/pancakeswapmumbaitestnet",
+      method: "post",
+      headers: {
+        "content-type": "application/json",
+        "Accept-Encoding": "utf-8",
+      },
+      data: {
+        query: `{
+          tokenDaySnapshots(where: { token_: { symbol: "${req.body.symbolA}" }}, first: 2) {
+            id
+            priceNative
+            date
+          }
+        }
+          `,
+      },
+    });
+
     let tokenBdaysnapshotsdata = await axios({
       url: "https://api.thegraph.com/subgraphs/name/hammadsanaullah/pancakeswapmumbaitestnet",
       method: "post",
@@ -1118,6 +1236,25 @@ router.get("/getMonthPrices", async (req, res) => {
       data: {
         query: `{
           tokenDaySnapshots(where: { token_: { symbol: "${req.body.symbolB}" }, date_gt: ${dayStartTime} }) {
+            id
+            priceNative
+            date
+          }
+        }
+          `,
+      },
+    });
+
+    let tokenBdaysnapshotsdataAll = await axios({
+      url: "https://api.thegraph.com/subgraphs/name/hammadsanaullah/pancakeswapmumbaitestnet",
+      method: "post",
+      headers: {
+        "content-type": "application/json",
+        "Accept-Encoding": "utf-8",
+      },
+      data: {
+        query: `{
+          tokenDaySnapshots(where: { token_: { symbol: "${req.body.symbolB}" }}, first: 2) {
             id
             priceNative
             date
@@ -1196,28 +1333,45 @@ router.get("/getMonthPrices", async (req, res) => {
         var timestamps = await generateTimeStampsForMonth(dayStartTime);
         var generatedObject = [];
         var count = 0;
-      
+
         for (var i = 0; i < timestamps.length; i++) {
           time = timestamps[i];
-          if (timestamps[i] <= timeStampsSubgraphTokenA[count]) {
-            //keep adding timestamp of timestampssubgraph[count]
+          if (
+            timestamps[i] <
+              tokenAdaysnapshotsdataAll.data.data.tokenDaySnapshots[0].date ||
+            timestamps[i] <
+              tokenBdaysnapshotsdataAll.data.data.tokenDaySnapshots[0].date
+          ) {
             generatedObject.push({
-              info: { time, derivedBNB: priceTokenB / pricesTokenA[count] },
-            });
-          } else if (timeStampsSubgraphTokenA[count] == undefined) {
-            generatedObject.push({
-              info: { time, derivedBNB: priceTokenB / pricesTokenA[count - 1] },
+              info: { time, derivedBNB: 0 },
             });
           } else {
-            count = count + 1;
-            if (pricesTokenA[count] == undefined) {
-              generatedObject.push({
-                info: { time, derivedBNB: priceTokenB / pricesTokenA[count - 1] },
-              });
-            } else {
+            if (timestamps[i] <= timeStampsSubgraphTokenA[count]) {
+              //keep adding timestamp of timestampssubgraph[count]
               generatedObject.push({
                 info: { time, derivedBNB: priceTokenB / pricesTokenA[count] },
               });
+            } else if (timeStampsSubgraphTokenA[count] == undefined) {
+              generatedObject.push({
+                info: {
+                  time,
+                  derivedBNB: priceTokenB / pricesTokenA[count - 1],
+                },
+              });
+            } else {
+              count = count + 1;
+              if (pricesTokenA[count] == undefined) {
+                generatedObject.push({
+                  info: {
+                    time,
+                    derivedBNB: priceTokenB / pricesTokenA[count - 1],
+                  },
+                });
+              } else {
+                generatedObject.push({
+                  info: { time, derivedBNB: priceTokenB / pricesTokenA[count] },
+                });
+              }
             }
           }
         }
@@ -1296,25 +1450,39 @@ router.get("/getMonthPrices", async (req, res) => {
 
         for (var i = 0; i < timestamps.length; i++) {
           time = timestamps[i];
-          if (timestamps[i] <= timeStampsBArray[count]) {
-            //keep adding timestamp of timestampssubgraph[count]
+          if (
+            timestamps[i] <
+              tokenAdaysnapshotsdataAll.data.data.tokenDaySnapshots[0].date ||
+            timestamps[i] <
+              tokenBdaysnapshotsdataAll.data.data.tokenDaySnapshots[0].date
+          ) {
             generatedObject.push({
-              info: { time, derivedBNB: priceBArray[count] / lastPrice },
-            });
-          } else if (timeStampsBArray[count] == undefined) {
-            generatedObject.push({
-              info: { time, derivedBNB: priceBArray[count - 1] / lastPrice },
+              info: { time, derivedBNB: 0 },
             });
           } else {
-            count = count + 1;
-            if (priceBArray[count] == undefined) {
+            if (timestamps[i] <= timeStampsBArray[count]) {
+              //keep adding timestamp of timestampssubgraph[count]
+              generatedObject.push({
+                info: { time, derivedBNB: priceBArray[count] / lastPrice },
+              });
+            } else if (timeStampsBArray[count] == undefined) {
               generatedObject.push({
                 info: { time, derivedBNB: priceBArray[count - 1] / lastPrice },
               });
             } else {
-              generatedObject.push({
-                info: { time, derivedBNB: priceBArray[count] / lastPrice },
-              });
+              count = count + 1;
+              if (priceBArray[count] == undefined) {
+                generatedObject.push({
+                  info: {
+                    time,
+                    derivedBNB: priceBArray[count - 1] / lastPrice,
+                  },
+                });
+              } else {
+                generatedObject.push({
+                  info: { time, derivedBNB: priceBArray[count] / lastPrice },
+                });
+              }
             }
           }
         }
@@ -1378,24 +1546,25 @@ router.get("/getMonthPrices", async (req, res) => {
 
         for (var i = 0; i < timestamps.length; i++) {
           time = timestamps[i];
-          if (timestamps[i] <= timeStampsAArray[count]) {
-            if (timestamps[i] <= timeStampsBArray[countB]) {
-              generatedObject.push({
-                info: {
-                  time,
-                  derivedBNB: priceBArray[countB] / priceAArray[count],
-                },
-              });
-            } else if (priceBArray[countB] == undefined) {
-              generatedObject.push({
-                info: {
-                  time,
-                  derivedBNB: priceBArray[countB - 1] / priceAArray[count],
-                },
-              });
-            } else {
-              countB = countB + 1;
-              if (priceBArray[countB] == undefined) {
+          if (
+            timestamps[i] <
+              tokenAdaysnapshotsdataAll.data.data.tokenDaySnapshots[0].date ||
+            timestamps[i] <
+              tokenBdaysnapshotsdataAll.data.data.tokenDaySnapshots[0].date
+          ) {
+            generatedObject.push({
+              info: { time, derivedBNB: 0 },
+            });
+          } else {
+            if (timestamps[i] <= timeStampsAArray[count]) {
+              if (timestamps[i] <= timeStampsBArray[countB]) {
+                generatedObject.push({
+                  info: {
+                    time,
+                    derivedBNB: priceBArray[countB] / priceAArray[count],
+                  },
+                });
+              } else if (priceBArray[countB] == undefined) {
                 generatedObject.push({
                   info: {
                     time,
@@ -1403,51 +1572,24 @@ router.get("/getMonthPrices", async (req, res) => {
                   },
                 });
               } else {
-                generatedObject.push({
-                  info: {
-                    time,
-                    derivedBNB: priceBArray[countB] / priceAArray[count],
-                  },
-                });
+                countB = countB + 1;
+                if (priceBArray[countB] == undefined) {
+                  generatedObject.push({
+                    info: {
+                      time,
+                      derivedBNB: priceBArray[countB - 1] / priceAArray[count],
+                    },
+                  });
+                } else {
+                  generatedObject.push({
+                    info: {
+                      time,
+                      derivedBNB: priceBArray[countB] / priceAArray[count],
+                    },
+                  });
+                }
               }
-            }
-          } else if (timeStampsAArray[count] == undefined) {
-            if (timestamps[i] <= timeStampsBArray[countB]) {
-              generatedObject.push({
-                info: {
-                  time,
-                  derivedBNB: priceBArray[countB] / priceAArray[count - 1],
-                },
-              });
-            } else if (priceBArray[countB] == undefined) {
-              generatedObject.push({
-                info: {
-                  time,
-                  derivedBNB: priceBArray[countB - 1] / priceAArray[count - 1],
-                },
-              });
-            } else {
-              countB = countB + 1;
-              if (priceBArray[countB] == undefined) {
-                generatedObject.push({
-                  info: {
-                    time,
-                    derivedBNB:
-                      priceBArray[countB - 1] / priceAArray[count - 1],
-                  },
-                });
-              } else {
-                generatedObject.push({
-                  info: {
-                    time,
-                    derivedBNB: priceBArray[countB] / priceAArray[count - 1],
-                  },
-                });
-              }
-            }
-          } else {
-            count = count + 1;
-            if (priceAArray[count] == undefined) {
+            } else if (timeStampsAArray[count] == undefined) {
               if (timestamps[i] <= timeStampsBArray[countB]) {
                 generatedObject.push({
                   info: {
@@ -1483,23 +1625,52 @@ router.get("/getMonthPrices", async (req, res) => {
                 }
               }
             } else {
-              if (timestamps[i] <= timeStampsBArray[countB]) {
-                generatedObject.push({
-                  info: {
-                    time,
-                    derivedBNB: priceBArray[countB] / priceAArray[count],
-                  },
-                });
-              } else if (priceBArray[countB] == undefined) {
-                generatedObject.push({
-                  info: {
-                    time,
-                    derivedBNB: priceBArray[countB - 1] / priceAArray[count],
-                  },
-                });
+              count = count + 1;
+              if (priceAArray[count] == undefined) {
+                if (timestamps[i] <= timeStampsBArray[countB]) {
+                  generatedObject.push({
+                    info: {
+                      time,
+                      derivedBNB: priceBArray[countB] / priceAArray[count - 1],
+                    },
+                  });
+                } else if (priceBArray[countB] == undefined) {
+                  generatedObject.push({
+                    info: {
+                      time,
+                      derivedBNB:
+                        priceBArray[countB - 1] / priceAArray[count - 1],
+                    },
+                  });
+                } else {
+                  countB = countB + 1;
+                  if (priceBArray[countB] == undefined) {
+                    generatedObject.push({
+                      info: {
+                        time,
+                        derivedBNB:
+                          priceBArray[countB - 1] / priceAArray[count - 1],
+                      },
+                    });
+                  } else {
+                    generatedObject.push({
+                      info: {
+                        time,
+                        derivedBNB:
+                          priceBArray[countB] / priceAArray[count - 1],
+                      },
+                    });
+                  }
+                }
               } else {
-                countB = countB + 1;
-                if (priceBArray[countB] == undefined) {
+                if (timestamps[i] <= timeStampsBArray[countB]) {
+                  generatedObject.push({
+                    info: {
+                      time,
+                      derivedBNB: priceBArray[countB] / priceAArray[count],
+                    },
+                  });
+                } else if (priceBArray[countB] == undefined) {
                   generatedObject.push({
                     info: {
                       time,
@@ -1507,12 +1678,23 @@ router.get("/getMonthPrices", async (req, res) => {
                     },
                   });
                 } else {
-                  generatedObject.push({
-                    info: {
-                      time,
-                      derivedBNB: priceBArray[countB] / priceAArray[count],
-                    },
-                  });
+                  countB = countB + 1;
+                  if (priceBArray[countB] == undefined) {
+                    generatedObject.push({
+                      info: {
+                        time,
+                        derivedBNB:
+                          priceBArray[countB - 1] / priceAArray[count],
+                      },
+                    });
+                  } else {
+                    generatedObject.push({
+                      info: {
+                        time,
+                        derivedBNB: priceBArray[countB] / priceAArray[count],
+                      },
+                    });
+                  }
                 }
               }
             }
@@ -1585,15 +1767,22 @@ router.get("/getMonthPrices", async (req, res) => {
       }
       var timestamps = await generateTimeStampsForMonth(dayStartTime);
 
-
       var generatedObject = [];
       var count = 0;
       var countB = 0;
 
-      for (var i = 0; i < timestamps.length; i++) {
-        generatedObject.push({
-          info: { time, derivedBNB: lastPriceB / lastPriceA },
-        });
+      if (lastPriceA == 0) {
+        for (var i = 0; i < timestamps.length; i++) {
+          generatedObject.push({
+            info: { time, derivedBNB: 0 },
+          });
+        }
+      } else {
+        for (var i = 0; i < timestamps.length; i++) {
+          generatedObject.push({
+            info: { time, derivedBNB: lastPriceB / lastPriceA },
+          });
+        }
       }
 
       return res.status(200).json({ data: generatedObject });
