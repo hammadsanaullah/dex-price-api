@@ -232,16 +232,6 @@ router.get("/get24hourPrices", async (req, res) => {
         }
 
         var timestamps = await generateTimeStampsForDay(dayStartTime);
-        // var generatedObject = await generateObjectResponseDay(
-        //   timestamps,
-        //   timeStampsBArray,
-        //   lastPrice,
-        //   priceBArray
-        // );
-        timeStampsGenerated,
-        timeStampsSubgraphTokenA,
-        priceTokenB,
-        pricesTokenA
 
         var generatedObject = [];
         var count = 0;
