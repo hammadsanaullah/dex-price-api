@@ -311,10 +311,12 @@ router.get("/get24hourPrices", async (req, res) => {
         var countB = 0;
       
         for (var i = 0; i < timestamps.length; i++) {
+          time = timestamps[i];
           if (timestamps[i] <= timeStampsAArray[count]) {
             if(timestamps[i] <= timeStampsBArray[countB]) {
-              time = timestamps[i];
               generatedObject.push({ info: { time, derivedBNB: priceBArray[countB]/priceAArray[count] } });
+            } else if(priceBArray[countB] == undefined) {
+              generatedObject.push({ info: { time, derivedBNB: priceBArray[countB - 1]/priceAArray[count] } });
             } else {
               countB = countB + 1;
               if(priceBArray[countB] == undefined){
@@ -325,8 +327,9 @@ router.get("/get24hourPrices", async (req, res) => {
             }
           } else if(timeStampsAArray[count] == undefined) {
             if(timestamps[i] <= timeStampsBArray[countB]) {
-              time = timestamps[i];
               generatedObject.push({ info: { time, derivedBNB: priceBArray[countB]/priceAArray[count-1] } });
+            } else if(priceBArray[countB] == undefined) {
+              generatedObject.push({ info: { time, derivedBNB: priceBArray[countB - 1]/priceAArray[count-1] } });
             } else {
               countB = countB + 1;
               if(priceBArray[countB] == undefined){
@@ -339,8 +342,9 @@ router.get("/get24hourPrices", async (req, res) => {
             count = count + 1;
             if(priceAArray[count] == undefined){
               if(timestamps[i] <= timeStampsBArray[countB]) {
-                time = timestamps[i];
                 generatedObject.push({ info: { time, derivedBNB: priceBArray[countB]/priceAArray[count-1] } });
+              } else if(priceBArray[countB] == undefined) {
+                generatedObject.push({ info: { time, derivedBNB: priceBArray[countB - 1]/priceAArray[count-1] } });
               } else {
                 countB = countB + 1;
                 if(priceBArray[countB] == undefined){
@@ -351,8 +355,9 @@ router.get("/get24hourPrices", async (req, res) => {
               }
             } else {
               if(timestamps[i] <= timeStampsBArray[countB]) {
-                time = timestamps[i];
                 generatedObject.push({ info: { time, derivedBNB: priceBArray[countB]/priceAArray[count] } });
+              } else if(priceBArray[countB] == undefined) {
+                generatedObject.push({ info: { time, derivedBNB: priceBArray[countB - 1]/priceAArray[count] } });
               } else {
                 countB = countB + 1;
                 if(priceBArray[countB] == undefined){
@@ -441,8 +446,6 @@ router.get("/get24hourPrices", async (req, res) => {
       var generatedObject = [];
       var count = 0;
       var countB = 0;
-    
-      generatedObject.push({ info: { time, derivedBNB: priceBArray[countB]/priceAArray[count] } });
 
       for (var i = 0; i < timestamps.length; i++) {
         generatedObject.push({ info: {time, derivedBNB: lastPriceB/lastPriceA} });
@@ -455,4 +458,58 @@ router.get("/get24hourPrices", async (req, res) => {
   }
 });
 
+router.get("/getWeekPrices", async (req, res) => {
+  try {
+ var currentTime = Date.now();
+    var dayStartTime = Math.round(currentTime / 1000);
+    dayStartTime = dayStartTime - 86400;
+    console.log(dayStartTime);
+
+    let tokenAhoursnapshotsdata = await axios({
+      url: "https://api.thegraph.com/subgraphs/name/hammadsanaullah/pancakeswapmumbaitestnet",
+      method: "post",
+      headers: {
+        "content-type": "application/json",
+        "Accept-Encoding": "utf-8",
+      },
+      data: {
+        query: `{
+          tokenHourSnapshots(where: { token_: { symbol: "USDT" }, date_gt: ${dayStartTime} }) {
+            id
+            priceNative
+            date
+          }
+        }
+          `,
+      },
+    });
+
+    let tokenBhoursnapshotsdata = await axios({
+      url: "https://api.thegraph.com/subgraphs/name/hammadsanaullah/pancakeswapmumbaitestnet",
+      method: "post",
+      headers: {
+        "content-type": "application/json",
+        "Accept-Encoding": "utf-8",
+      },
+      data: {
+        query: `{
+          tokenHourSnapshots(where: { token_: { symbol: "BTCB" }, date_gt: ${dayStartTime} }) {
+            id
+            priceNative
+            date
+          }
+        }
+          `,
+      },
+    });
+
+    //if tokenAhoursnapshot has data and tokenBhoursnapshot doesn't have data
+    if (
+      tokenAhoursnapshotsdata.data.data.tokenHourSnapshots.length != 0 &&
+      tokenBhoursnapshotsdata.data.data.tokenHourSnapshots.length == 0
+    ) {}
+  } catch(error) {
+    return res.status(400).json({ message: error.message });
+  }
+});
 module.exports = router;
