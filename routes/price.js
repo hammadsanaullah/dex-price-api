@@ -252,7 +252,7 @@ router.get("/get24hourPrices", async (req, res) => {
             time = timestamps[i];
             generatedObject.push({ info: { time, derivedBNB: pricesTokenA[count]/pricesTokenB } });
           } else if(timeStampsBArray[count] == undefined) {
-            generatedObject.push({ info: { time, derivedBNB: pricesTokenA[count-1]/pricesTokenB] } });
+            generatedObject.push({ info: { time, derivedBNB: pricesTokenA[count-1]/pricesTokenB } });
           } else {
             count = count + 1;
             if(pricesTokenA[count] == undefined){
