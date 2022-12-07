@@ -57,7 +57,7 @@ router.get("/get24hourPrices", async (req, res) => {
       },
       data: {
         query: `{
-          tokenHourSnapshots(where: { token_: { symbol: "USDT" }, date_gt: ${dayStartTime} }) {
+          tokenHourSnapshots(where: { token_: { symbol: "${req.body.symbolA}" }, date_gt: ${dayStartTime} }) {
             id
             priceNative
             date
@@ -76,7 +76,7 @@ router.get("/get24hourPrices", async (req, res) => {
       },
       data: {
         query: `{
-          tokenHourSnapshots(where: { token_: { symbol: "BTCB" }, date_gt: ${dayStartTime} }) {
+          tokenHourSnapshots(where: { token_: { symbol: "${req.body.symbolB}" }, date_gt: ${dayStartTime} }) {
             id
             priceNative
             date
@@ -129,7 +129,7 @@ router.get("/get24hourPrices", async (req, res) => {
           },
           data: {
             query: `{
-              tokenPrices(where: {token_: {symbol: "WBNB"}}) {
+              tokenPrices(where: {token_: {symbol: "${req.body.symbolB}"}}) {
                 id
                 lastUsdPrice
                 derivedNative
@@ -206,7 +206,7 @@ router.get("/get24hourPrices", async (req, res) => {
           },
           data: {
             query: `{
-              tokenPrices(where: {token_: {symbol: "WBNB"}}) {
+              tokenPrices(where: {token_: {symbol: "${req.body.symbolA}"}}) {
                 id
                 lastUsdPrice
                 derivedNative
@@ -384,7 +384,7 @@ router.get("/get24hourPrices", async (req, res) => {
         },
         data: {
           query: `{
-            tokenPrices(where: {token_: {symbol: "BTCB"}}) {
+            tokenPrices(where: {token_: {symbol: "${req.body.symbolA}"}}) {
               id
               lastUsdPrice
               derivedNative
@@ -403,7 +403,7 @@ router.get("/get24hourPrices", async (req, res) => {
         },
         data: {
           query: `{
-            tokenPrices(where: {token_: {symbol: "USDT"}}) {
+            tokenPrices(where: {token_: {symbol: "${req.body.symbolB}"}}) {
               id
               lastUsdPrice
               derivedNative
@@ -474,7 +474,7 @@ router.get("/getWeekPrices", async (req, res) => {
       },
       data: {
         query: `{
-          tokenHourSnapshots(where: { token_: { symbol: "USDT" }, date_gt: ${dayStartTime} }) {
+          tokenHourSnapshots(where: { token_: { symbol: "${req.body.symbolA}" }, date_gt: ${dayStartTime} }) {
             id
             priceNative
             date
@@ -493,7 +493,7 @@ router.get("/getWeekPrices", async (req, res) => {
       },
       data: {
         query: `{
-          tokenHourSnapshots(where: { token_: { symbol: "BTCB" }, date_gt: ${dayStartTime} }) {
+          tokenHourSnapshots(where: { token_: { symbol: "${req.body.symbolB}" }, date_gt: ${dayStartTime} }) {
             id
             priceNative
             date
