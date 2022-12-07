@@ -250,15 +250,15 @@ router.get("/get24hourPrices", async (req, res) => {
           if (timestamps[i] <= timeStampsBArray[count]) {
             //keep adding timestamp of timestampssubgraph[count]
             time = timestamps[i];
-            generatedObject.push({ info: { time, derivedBNB: pricesTokenA[count]/pricesTokenB } });
+            generatedObject.push({ info: { time, derivedBNB: priceBArray[count]/lastPrice } });
           } else if(timeStampsBArray[count] == undefined) {
-            generatedObject.push({ info: { time, derivedBNB: pricesTokenA[count-1]/pricesTokenB } });
+            generatedObject.push({ info: { time, derivedBNB: priceBArray[count - 1]/lastPrice } });
           } else {
             count = count + 1;
-            if(pricesTokenA[count] == undefined){
-              generatedObject.push({ info: { time, derivedBNB: pricesTokenA[count-1]/pricesTokenB } });
+            if(priceBArray[count] == undefined){
+              generatedObject.push({ info: { time, derivedBNB: priceBArray[count - 1]/lastPrice } });
             } else {
-              generatedObject.push({ info: { time, derivedBNB: pricesTokenA[count]/pricesTokenB } });
+              generatedObject.push({ info: { time, derivedBNB: priceBArray[count]/lastPrice } });
             }
           }
         }
