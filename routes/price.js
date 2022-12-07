@@ -35,23 +35,11 @@ async function generateTimeStampsForMonth(previousDayTime) {
   return timeStamps;
 }
 
-async function generateTimeStampsForYear(previousDayTime) {
-  var timeStamps = [];
-  timeStamps[0] = previousDayTime;
-
-  for (var i = 1; i < 30; i++) {
-    timeStamps.push(timeStamps[i - 1] + 86400);
-  }
-
-  return timeStamps;
-}
-
 router.get("/getDayPrices", async (req, res) => {
   try {
     var currentTime = Date.now();
     var dayStartTime = Math.round(currentTime / 1000);
     dayStartTime = dayStartTime - 86400;
-    console.log(dayStartTime);
 
     let tokenAhoursnapshotsdata = await axios({
       url: "https://api.thegraph.com/subgraphs/name/hammadsanaullah/pancakeswapmumbaitestnet",
@@ -290,10 +278,7 @@ router.get("/getDayPrices", async (req, res) => {
           },
         });
         if (tokenAData.data.data.tokenPrices.length != 0) {
-          // for(var i = 0; i < tokenData.data.data.tokenPrices.length; i++ ) {
 
-          // }
-          // console.log(tokenData.data.data.tokenPrices)
           var lastPrice =
             tokenAData.data.data.tokenPrices[
               tokenAData.data.data.tokenPrices.length - 1
@@ -608,10 +593,7 @@ router.get("/getDayPrices", async (req, res) => {
         tokenAData.data.data.tokenPrices.length != 0 ||
         tokenBData.data.data.tokenPrices.length != 0
       ) {
-        // for(var i = 0; i < tokenData.data.data.tokenPrices.length; i++ ) {
-
-        // }
-        // console.log(tokenData.data.data.tokenPrices)
+       
         var lastPriceA =
           tokenAData.data.data.tokenPrices[
             tokenAData.data.data.tokenPrices.length - 1
@@ -621,7 +603,7 @@ router.get("/getDayPrices", async (req, res) => {
           tokenBData.data.data.tokenPrices[
             tokenBData.data.data.tokenPrices.length - 1
           ].derivedNative;
-        //need to return lastprice with 24 hours timestamps
+
       } else {
         return res
           .status(500)
@@ -659,7 +641,6 @@ router.get("/getWeekPrices", async (req, res) => {
     var currentTime = Date.now();
     var dayStartTime = Math.round(currentTime / 1000);
     dayStartTime = dayStartTime - 604800;
-    console.log(dayStartTime);
 
     let tokenAdaysnapshotsdata = await axios({
       url: "https://api.thegraph.com/subgraphs/name/hammadsanaullah/pancakeswapmumbaitestnet",
@@ -901,10 +882,7 @@ router.get("/getWeekPrices", async (req, res) => {
           },
         });
         if (tokenAData.data.data.tokenPrices.length != 0) {
-          // for(var i = 0; i < tokenData.data.data.tokenPrices.length; i++ ) {
-
-          // }
-          // console.log(tokenData.data.data.tokenPrices)
+          
           var lastPrice =
             tokenAData.data.data.tokenPrices[
               tokenAData.data.data.tokenPrices.length - 1
@@ -1266,7 +1244,6 @@ router.get("/getMonthPrices", async (req, res) => {
     var currentTime = Date.now();
     var dayStartTime = Math.round(currentTime / 1000);
     dayStartTime = dayStartTime - 2592000;
-    console.log(dayStartTime);
 
     let tokenAdaysnapshotsdata = await axios({
       url: "https://api.thegraph.com/subgraphs/name/hammadsanaullah/pancakeswapmumbaitestnet",
@@ -1508,10 +1485,7 @@ router.get("/getMonthPrices", async (req, res) => {
           },
         });
         if (tokenAData.data.data.tokenPrices.length != 0) {
-          // for(var i = 0; i < tokenData.data.data.tokenPrices.length; i++ ) {
 
-          // }
-          // console.log(tokenData.data.data.tokenPrices)
           var lastPrice =
             tokenAData.data.data.tokenPrices[
               tokenAData.data.data.tokenPrices.length - 1
@@ -1826,10 +1800,7 @@ router.get("/getMonthPrices", async (req, res) => {
         tokenAData.data.data.tokenPrices.length != 0 ||
         tokenBData.data.data.tokenPrices.length != 0
       ) {
-        // for(var i = 0; i < tokenData.data.data.tokenPrices.length; i++ ) {
-
-        // }
-        // console.log(tokenData.data.data.tokenPrices)
+        
         var lastPriceA =
           tokenAData.data.data.tokenPrices[
             tokenAData.data.data.tokenPrices.length - 1
@@ -1839,7 +1810,7 @@ router.get("/getMonthPrices", async (req, res) => {
           tokenBData.data.data.tokenPrices[
             tokenBData.data.data.tokenPrices.length - 1
           ].derivedNative;
-        //need to return lastprice with 24 hours timestamps
+
       } else {
         return res
           .status(500)
@@ -1871,4 +1842,5 @@ router.get("/getMonthPrices", async (req, res) => {
     return res.status(400).json({ message: error.message });
   }
 });
+
 module.exports = router;
