@@ -72,6 +72,25 @@ router.get("/getDayPrices", async (req, res) => {
       },
     });
 
+    let tokenAdaysnapshotsdataAll = await axios({
+      url: "https://api.thegraph.com/subgraphs/name/hammadsanaullah/pancakeswapmumbaitestnet",
+      method: "post",
+      headers: {
+        "content-type": "application/json",
+        "Accept-Encoding": "utf-8",
+      },
+      data: {
+        query: `{
+          tokenDaySnapshots(where: { token_: { symbol: "${req.body.symbolA}" }}, first: 2) {
+            id
+            priceNative
+            date
+          }
+        }
+          `,
+      },
+    });
+
     let tokenBhoursnapshotsdata = await axios({
       url: "https://api.thegraph.com/subgraphs/name/hammadsanaullah/pancakeswapmumbaitestnet",
       method: "post",
@@ -82,6 +101,25 @@ router.get("/getDayPrices", async (req, res) => {
       data: {
         query: `{
           tokenHourSnapshots(where: { token_: { symbol: "${req.body.symbolB}" }, date_gt: ${dayStartTime} }) {
+            id
+            priceNative
+            date
+          }
+        }
+          `,
+      },
+    });
+
+    let tokenBdaysnapshotsdataAll = await axios({
+      url: "https://api.thegraph.com/subgraphs/name/hammadsanaullah/pancakeswapmumbaitestnet",
+      method: "post",
+      headers: {
+        "content-type": "application/json",
+        "Accept-Encoding": "utf-8",
+      },
+      data: {
+        query: `{
+          tokenDaySnapshots(where: { token_: { symbol: "${req.body.symbolB}" }}, first: 2) {
             id
             priceNative
             date
@@ -162,25 +200,39 @@ router.get("/getDayPrices", async (req, res) => {
 
         for (var i = 0; i < timestamps.length; i++) {
           time = timestamps[i];
-          if (timestamps[i] <= timeStampsAArray[count]) {
-            //keep adding timestamp of timestampssubgraph[count]
+          if (
+            timestamps[i] <
+              tokenAdaysnapshotsdataAll.data.data.tokenDaySnapshots[0].date ||
+            timestamps[i] <
+              tokenBdaysnapshotsdataAll.data.data.tokenDaySnapshots[0].date
+          ) {
             generatedObject.push({
-              info: { time, derivedBNB: lastPrice / priceAArray[count] },
-            });
-          } else if (timeStampsAArray[count] == undefined) {
-            generatedObject.push({
-              info: { time, derivedBNB: lastPrice / priceAArray[count - 1] },
+              info: { time, derivedBNB: 0 },
             });
           } else {
-            count = count + 1;
-            if (priceAArray[count] == undefined) {
+            if (timestamps[i] <= timeStampsAArray[count]) {
+              //keep adding timestamp of timestampssubgraph[count]
+              generatedObject.push({
+                info: { time, derivedBNB: lastPrice / priceAArray[count] },
+              });
+            } else if (timeStampsAArray[count] == undefined) {
               generatedObject.push({
                 info: { time, derivedBNB: lastPrice / priceAArray[count - 1] },
               });
             } else {
-              generatedObject.push({
-                info: { time, derivedBNB: lastPrice / priceAArray[count] },
-              });
+              count = count + 1;
+              if (priceAArray[count] == undefined) {
+                generatedObject.push({
+                  info: {
+                    time,
+                    derivedBNB: lastPrice / priceAArray[count - 1],
+                  },
+                });
+              } else {
+                generatedObject.push({
+                  info: { time, derivedBNB: lastPrice / priceAArray[count] },
+                });
+              }
             }
           }
         }
@@ -260,6 +312,16 @@ router.get("/getDayPrices", async (req, res) => {
 
         for (var i = 0; i < timestamps.length; i++) {
           time = timestamps[i];
+          if (
+            timestamps[i] <
+              tokenAdaysnapshotsdataAll.data.data.tokenDaySnapshots[0].date ||
+            timestamps[i] <
+              tokenBdaysnapshotsdataAll.data.data.tokenDaySnapshots[0].date
+          ) {
+            generatedObject.push({
+              info: { time, derivedBNB: 0 },
+            });
+          } else {
           if (timestamps[i] <= timeStampsBArray[count]) {
             //keep adding timestamp of timestampssubgraph[count]
             generatedObject.push({
@@ -281,6 +343,7 @@ router.get("/getDayPrices", async (req, res) => {
               });
             }
           }
+        }
         }
 
         return res.status(200).json({ data: generatedObject });
@@ -342,6 +405,16 @@ router.get("/getDayPrices", async (req, res) => {
 
         for (var i = 0; i < timestamps.length; i++) {
           time = timestamps[i];
+          if (
+            timestamps[i] <
+              tokenAdaysnapshotsdataAll.data.data.tokenDaySnapshots[0].date ||
+            timestamps[i] <
+              tokenBdaysnapshotsdataAll.data.data.tokenDaySnapshots[0].date
+          ) {
+            generatedObject.push({
+              info: { time, derivedBNB: 0 },
+            });
+          } else {
           if (timestamps[i] <= timeStampsAArray[count]) {
             if (timestamps[i] <= timeStampsBArray[countB]) {
               generatedObject.push({
@@ -481,6 +554,7 @@ router.get("/getDayPrices", async (req, res) => {
               }
             }
           }
+        }
         }
 
         return res.status(200).json({ data: generatedObject });
